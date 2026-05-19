@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Profesores - Viento Fresco</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; color: #333; }
+        
+        /* Encabezado */
+        .header { background-color: #2c3e50; color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header h1 { margin: 0; font-size: 24px; }
+        .header p { margin: 0; color: #1abc9c; font-weight: bold; }
+        
+        .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+        
+        /* Controles (Buscador y Botón) */
+        .controls { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 15px; flex-wrap: wrap; }
+        .search-bar { flex: 1; min-width: 250px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
+        .btn-refresh { background-color: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: background 0.3s; }
+        .btn-refresh:hover { background-color: #2980b9; }
+
+        /* Tabla de Resultados */
+        .table-container { background: white; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #ecf0f1; color: #2c3e50; font-weight: bold; text-transform: uppercase; font-size: 14px; letter-spacing: 0.5px; }
+        
+        tr:hover { background-color: #f9fbfb; }
+        
+        .nota-alta { color: #27ae60; font-weight: bold; font-size: 16px; }
+        .nota-baja { color: #e74c3c; font-weight: bold; font-size: 16px; }
+        .errores-lista { margin: 0; padding-left: 20px; color: #e67e22; font-size: 14px; }
+        .sin-errores { color: #27ae60; font-size: 14px; font-weight: bold; }
+        
+        .loading { text-align: center; padding: 40px; color: #7f8c8d; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Centro de Calificaciones</h1>
+        <p>Sexto Grado - Prof. Hillary</p>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <input type="text" id="buscador" class="search-bar" placeholder="🔍 Buscar por nombre del estudiante o materia..." onkeyup="filtrarTabla()">
+            <button class="btn-refresh" onclick="cargarDatos()">🔄 Actualizar Datos</button>
+        </div>
+
+        <div class="table-container">
+            <table id="tabla-calificaciones">
+                <thead>
+                    <tr>
+                        <th>Estudiante</th>
+                        <th>Materia / Práctica</th>
+                        <th>Nota</th>
+                        <th>Temas por Reforzar</th>
+                        <th>Fecha y Hora</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-body">
+                    <tr>
+                        <td colspan="5" class="loading">Cargando información desde la base de datos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const dbUrl = 'https://escuela-viento-fresco-default-rtdb.firebaseio.com/calificaciones.json';
+        let datosGlobales = []; // Para guardar los datos y poder filtrarlos
+
+        // Función para obtener los datos de Firebase
+        async function cargarDatos() {
+            const tbody = document.getElementById('tabla-body');
+            tbody.innerHTML = '<tr><td colspan="5" class="loading">Cargando información desde la base de datos...</td></tr>';
+
+            try {
+                const respuesta = await fetch(dbUrl);
+                const data = await respuesta.json();
+                
+                if (!data) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="loading">Aún no hay calificaciones registradas.</td></tr>';
+                    datosGlobales = [];
+                    return;
+                }
+
+                // Convertir el objeto de Firebase en un Array y ordenarlo por el más reciente
+                datosGlobales = Object.keys(data).map(key => data[key]).reverse();
+                renderizarTabla(datosGlobales);
+
+            } catch (error) {
+                console.error("Error al cargar datos:", error);
+                tbody.innerHTML = '<tr><td colspan="5" class="loading" style="color: red;">Error de conexión. Intenta nuevamente.</td></tr>';
+            }
+        }
+
+        // Función para dibujar las filas en la tabla
+        function renderizarTabla(lista) {
+            const tbody = document.getElementById('tabla-body');
+            tbody.innerHTML = '';
+
+            if (lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="loading">No se encontraron resultados.</td></tr>';
+                return;
+            }
+
+            lista.forEach(registro => {
+                const tr = document.createElement('tr');
+                
+                // Dar estilo a la nota
+                const claseNota = registro.nota >= 70 ? 'nota-alta' : 'nota-baja';
+                
+                // Formatear los errores (si los hay)
+                let erroresHtml = '<span class="sin-errores">¡Perfecto! Sin errores 🎉</span>';
+                if (registro.errores && registro.errores.length > 0) {
+                    erroresHtml = `<ul class="errores-lista">` + 
+                                  registro.errores.map(err => `<li>${err}</li>`).join('') + 
+                                  `</ul>`;
+                }
+
+                tr.innerHTML = `
+                    <td><strong>${registro.nombre || 'Desconocido'}</strong></td>
+                    <td>${registro.materia || '-'}</td>
+                    <td class="${claseNota}">${registro.nota || 0}</td>
+                    <td>${erroresHtml}</td>
+                    <td>${registro.fecha || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Función del buscador en tiempo real
+        function filtrarTabla() {
+            const texto = document.getElementById('buscador').value.toLowerCase();
+            const resultadosFiltrados = datosGlobales.filter(registro => {
+                const nombre = (registro.nombre || '').toLowerCase();
+                const materia = (registro.materia || '').toLowerCase();
+                return nombre.includes(texto) || materia.includes(texto);
+            });
+            renderizarTabla(resultadosFiltrados);
+        }
+
+        // Cargar los datos automáticamente al abrir la página
+        window.onload = cargarDatos;
+    </script>
+</body>
+</html>
