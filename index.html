@@ -6,47 +6,49 @@
     <title>Panel de Profesores - Viento Fresco</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; color: #333; }
-        
-        /* Encabezado */
-        .header { background-color: #2c3e50; color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .header h1 { margin: 0; font-size: 24px; }
-        .header p { margin: 0; color: #1abc9c; font-weight: bold; }
-        
+        .header { background-color: #2c3e50; color: white; padding: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
         
-        /* Controles (Buscador y Botón) */
-        .controls { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 15px; flex-wrap: wrap; }
-        .search-bar { flex: 1; min-width: 250px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
-        .btn-refresh { background-color: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: background 0.3s; }
-        .btn-refresh:hover { background-color: #2980b9; }
+        /* Panel de Autorización (EL QUE TE FALTA VER) */
+        .auth-panel { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px; border-top: 5px solid #27ae60; }
+        .auth-panel h2 { margin-top: 0; color: #2c3e50; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        .input-group input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; flex: 1; }
+        .btn-add { background-color: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
 
-        /* Tabla de Resultados */
+        /* Tabla y Controles */
+        .controls { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 15px; flex-wrap: wrap; }
+        .search-bar { flex: 1; min-width: 250px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; }
+        .btn-refresh { background-color: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        
         .table-container { background: white; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        table { width: 100%; border-collapse: collapse; }
         th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background-color: #ecf0f1; color: #2c3e50; font-weight: bold; text-transform: uppercase; font-size: 14px; letter-spacing: 0.5px; }
-        
-        tr:hover { background-color: #f9fbfb; }
-        
-        .nota-alta { color: #27ae60; font-weight: bold; font-size: 16px; }
-        .nota-baja { color: #e74c3c; font-weight: bold; font-size: 16px; }
-        .errores-lista { margin: 0; padding-left: 20px; color: #e67e22; font-size: 14px; }
-        .sin-errores { color: #27ae60; font-size: 14px; font-weight: bold; }
-        
-        .loading { text-align: center; padding: 40px; color: #7f8c8d; font-style: italic; }
+        th { background-color: #ecf0f1; text-transform: uppercase; font-size: 14px; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>Centro de Calificaciones</h1>
-        <p>Sexto Grado - Prof. Hillary</p>
+        <h1>Panel de Gestión - Viento Fresco</h1>
+        <p>Prof. Hillary Molina</p>
     </div>
 
     <div class="container">
+        <div class="auth-panel">
+            <h2>➕ Autorizar Nuevo Estudiante</h2>
+            <div class="input-group">
+                <input type="text" id="nuevo-nombre" placeholder="Nombre (Ej: Kathleen Sofia)">
+                <input type="text" id="nuevo-ap1" placeholder="Primer Apellido (Ej: Salazar)">
+                <input type="text" id="nuevo-ap2" placeholder="Segundo Apellido (Ej: Ruiz)">
+                <button class="btn-add" onclick="autorizarEstudiante()">Autorizar</button>
+            </div>
+            <p style="font-size: 12px; color: #7f8c8d;">* Escribe los datos y presiona Autorizar. El sistema le dará acceso inmediatamente.</p>
+        </div>
+
         <div class="controls">
-            <input type="text" id="buscador" class="search-bar" placeholder="🔍 Buscar por nombre del estudiante o materia..." onkeyup="filtrarTabla()">
-            <button class="btn-refresh" onclick="cargarDatos()">🔄 Actualizar Datos</button>
+            <input type="text" id="buscador" class="search-bar" placeholder="🔍 Buscar estudiante..." onkeyup="filtrarTabla()">
+            <button class="btn-refresh" onclick="cargarDatos()">🔄 Actualizar Tabla</button>
         </div>
 
         <div class="table-container">
@@ -54,97 +56,68 @@
                 <thead>
                     <tr>
                         <th>Estudiante</th>
-                        <th>Materia / Práctica</th>
+                        <th>Materia</th>
                         <th>Nota</th>
-                        <th>Temas por Reforzar</th>
-                        <th>Fecha y Hora</th>
+                        <th>Fecha</th>
                     </tr>
                 </thead>
                 <tbody id="tabla-body">
-                    <tr>
-                        <td colspan="5" class="loading">Cargando información desde la base de datos...</td>
-                    </tr>
+                    <tr><td colspan="4" class="loading">Cargando...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        const dbUrl = 'https://escuela-viento-fresco-default-rtdb.firebaseio.com/calificaciones.json';
-        let datosGlobales = []; // Para guardar los datos y poder filtrarlos
+        const baseUrl = 'https://escuela-viento-fresco-default-rtdb.firebaseio.com';
+        
+        // --- LÓGICA DE NORMALIZACIÓN ---
+        function normalizarTexto(texto) {
+            return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/z/g, "s").replace(/v/g, "b").replace(/ll/g, "y").trim();
+        }
 
-        // Función para obtener los datos de Firebase
+        // --- AUTORIZAR NUEVO NIÑO ---
+        async function autorizarEstudiante() {
+            const n = document.getElementById('nuevo-nombre').value;
+            const a1 = document.getElementById('nuevo-ap1').value;
+            const a2 = document.getElementById('nuevo-ap2').value;
+
+            if(!n || !a1 || !a2) { alert("Por favor completa los 3 campos."); return; }
+
+            const idNormalizado = normalizarTexto(`${n}${a1}${a2}`);
+            
+            const response = await fetch(`${baseUrl}/usuarios_autorizados/${idNormalizado}.json`, {
+                method: 'PUT',
+                body: JSON.stringify(true)
+            });
+
+            if(response.ok) {
+                alert(`¡Estudiante ${n} ${a1} autorizado correctamente! Ya puede ingresar a la plataforma.`);
+                document.getElementById('nuevo-nombre').value = '';
+                document.getElementById('nuevo-ap1').value = '';
+                document.getElementById('nuevo-ap2').value = '';
+            }
+        }
+
+        // --- CARGAR CALIFICACIONES ---
         async function cargarDatos() {
-            const tbody = document.getElementById('tabla-body');
-            tbody.innerHTML = '<tr><td colspan="5" class="loading">Cargando información desde la base de datos...</td></tr>';
-
             try {
-                const respuesta = await fetch(dbUrl);
+                const respuesta = await fetch(`${baseUrl}/calificaciones.json`);
                 const data = await respuesta.json();
-                
-                if (!data) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="loading">Aún no hay calificaciones registradas.</td></tr>';
-                    datosGlobales = [];
-                    return;
-                }
+                const tbody = document.getElementById('tabla-body');
+                tbody.innerHTML = '';
 
-                // Convertir el objeto de Firebase en un Array y ordenarlo por el más reciente
-                datosGlobales = Object.keys(data).map(key => data[key]).reverse();
-                renderizarTabla(datosGlobales);
+                if (!data) { tbody.innerHTML = '<tr><td colspan="4">No hay notas.</td></tr>'; return; }
 
-            } catch (error) {
-                console.error("Error al cargar datos:", error);
-                tbody.innerHTML = '<tr><td colspan="5" class="loading" style="color: red;">Error de conexión. Intenta nuevamente.</td></tr>';
-            }
+                Object.keys(data).forEach(key => {
+                    const reg = data[key];
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${reg.nombre_completo}</td><td>${reg.materia}</td><td>${reg.nota}</td><td>${reg.fecha}</td>`;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) { alert("Error al cargar notas."); }
         }
 
-        // Función para dibujar las filas en la tabla
-        function renderizarTabla(lista) {
-            const tbody = document.getElementById('tabla-body');
-            tbody.innerHTML = '';
-
-            if (lista.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="loading">No se encontraron resultados.</td></tr>';
-                return;
-            }
-
-            lista.forEach(registro => {
-                const tr = document.createElement('tr');
-                
-                // Dar estilo a la nota
-                const claseNota = registro.nota >= 70 ? 'nota-alta' : 'nota-baja';
-                
-                // Formatear los errores (si los hay)
-                let erroresHtml = '<span class="sin-errores">¡Perfecto! Sin errores 🎉</span>';
-                if (registro.errores && registro.errores.length > 0) {
-                    erroresHtml = `<ul class="errores-lista">` + 
-                                  registro.errores.map(err => `<li>${err}</li>`).join('') + 
-                                  `</ul>`;
-                }
-
-                tr.innerHTML = `
-                    <td><strong>${registro.nombre || 'Desconocido'}</strong></td>
-                    <td>${registro.materia || '-'}</td>
-                    <td class="${claseNota}">${registro.nota || 0}</td>
-                    <td>${erroresHtml}</td>
-                    <td>${registro.fecha || '-'}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        // Función del buscador en tiempo real
-        function filtrarTabla() {
-            const texto = document.getElementById('buscador').value.toLowerCase();
-            const resultadosFiltrados = datosGlobales.filter(registro => {
-                const nombre = (registro.nombre || '').toLowerCase();
-                const materia = (registro.materia || '').toLowerCase();
-                return nombre.includes(texto) || materia.includes(texto);
-            });
-            renderizarTabla(resultadosFiltrados);
-        }
-
-        // Cargar los datos automáticamente al abrir la página
         window.onload = cargarDatos;
     </script>
 </body>
