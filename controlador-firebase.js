@@ -45,28 +45,34 @@ async function obtenerClientes() {
     }
 }
 
-// 4. LOGÍSTICA: ANALIZAR VENCIMIENTOS (El "Semáforo" de alertas para las tarjetas)
-// Esta función revisa los extintores de un cliente y determina si alguno requiere atención urgente
+
+// 4. LOGÍSTICA: ANALIZAR VENCIMIENTOS POR MES Y AÑO (El "Semáforo")
 function verificarEstadoCliente(extintores) {
-    if (!extintores || Object.keys(extintores).length === 0) return { estado: "sin_equipos", mensaje: "Sin extintores registrados" };
+    if (!extintores || Object.keys(extintores).length === 0) return { estado: "sin_equipos", clase: "border-gray-400", icono: "⚪ SIN EQUIPOS" };
 
     const hoy = new Date();
+    const anioActual = hoy.getFullYear();
+    const mesActual = hoy.getMonth() + 1; // Enero es 0, por eso sumamos 1
+
     let proximoAVencer = false;
     let vencido = false;
-    let totalEquipos = 0;
 
     for (let key in extintores) {
-        totalEquipos++;
         const ext = extintores[key];
         if (!ext.fechaVencimiento) continue;
 
-        const fechaVenc = new Date(ext.fechaVencimiento);
-        const diferenciaDias = Math.ceil((fechaVenc - hoy) / (1000 * 60 * 60 * 24));
+        // Esperamos que la fecha venga en formato "YYYY-MM" (Ej: "2026-05")
+        const partesFecha = ext.fechaVencimiento.split("-");
+        const anioVenc = parseInt(partesFecha[0]);
+        const mesVenc = parseInt(partesFecha[1]);
 
-        if (diferenciaDias <= 0) {
-            vencido = true;
-        } else if (diferenciaDias <= 30) {
-            proximoAVencer = true;
+        // Calculamos la diferencia exacta en meses
+        const mesesRestantes = ((anioVenc - anioActual) * 12) + (mesVenc - mesActual);
+
+        if (mesesRestantes < 0) {
+            vencido = true; // Ya pasó el mes de vencimiento
+        } else if (mesesRestantes === 0 || mesesRestantes === 1) {
+            proximoAVencer = true; // Vence este mes o el mes que viene
         }
     }
 
@@ -74,6 +80,12 @@ function verificarEstadoCliente(extintores) {
     if (proximoAVencer) return { estado: "alerta", clase: "border-yellow-500", icono: "⏳ PRÓXIMO" };
     return { estado: "al dia", clase: "border-green-500", icono: "✅ AL DÍA" };
 }
+
+// Función auxiliar para auto-calcular el vencimiento (1 año exacto)
+function calcularVencimientoAutomatico(mesRecarga, anioRecarga) {
+    return `${anioRecarga + 1}-${mesRecarga.toString().padStart(2, '0')}`;
+}
+
 
 // 5. CONTROL DIARIO: Reportar la actividad del vendedor al administrador
 async function registrarActividadDiaria(vendedorNombre, datosReporte) {
