@@ -3,103 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de la Profesora - Notas</title>
+    <title>Panel de la Profesora - Análisis de Rendimiento</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f4f8; margin: 0; padding: 20px; color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
         .header { background-color: #2c3e50; color: white; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .header h1 { margin: 0; font-size: 24px; }
+        .header p { margin: 5px 0 0; color: #1abc9c; }
         
-        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .btn-volver { display: inline-block; margin-bottom: 15px; text-decoration: none; color: #34495e; font-weight: bold; background: #e2e8f0; padding: 10px 15px; border-radius: 6px; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        /* Sección de Alertas */
+        .alerts-section { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .alert-card { background: #fff3f3; border-left: 5px solid #e74c3c; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .alert-card h3 { margin: 0 0 10px 0; color: #c0392b; font-size: 18px; }
+        .alert-card p { margin: 5px 0; font-size: 14px; color: #333; }
+        .alert-tag { display: inline-block; background: #e74c3c; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; margin: 2px; font-weight: bold; }
+
+        /* Estilos de las Tarjetas */
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .card h2 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #1abc9c; padding-bottom: 10px; font-size: 20px; }
+        
+        /* NUEVO: Contenedor responsivo para móviles */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto; /* Permite deslizar solo la tabla de lado a lado */
+            -webkit-overflow-scrolling: touch; /* Suaviza el desplazamiento en iPhone/Android */
+            margin-top: 15px;
+        }
+
+        /* Estilos de Tabla actualizados */
+        table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 600px; /* Evita que la tabla se encoja de más en celulares */ }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #1abc9c; color: white; font-weight: bold; }
-        tr:hover { background-color: #f9f9f9; }
+        th { background-color: #f8f9fa; color: #2c3e50; font-weight: bold; white-space: nowrap; }
+        tr:hover { background-color: #f1f4f6; }
         
         .nota-alta { color: #27ae60; font-weight: bold; }
         .nota-baja { color: #e74c3c; font-weight: bold; }
-        .btn-volver { display: inline-block; margin-bottom: 15px; text-decoration: none; color: #34495e; font-weight: bold; background: #e2e8f0; padding: 10px 15px; border-radius: 6px; }
     </style>
 </head>
 <body>
 
     <div class="container" id="contenido-panel" style="display:none;">
         <a href="index.html" class="btn-volver">⬅️ Volver al Menú Principal</a>
+        
         <div class="header">
-            <h1>Registro de Calificaciones - 6° Grado</h1>
-            <p>Prof. Hillary Molina</p>
+            <h1>Panel Administrativo y Análisis de Rendimiento</h1>
+            <p>Escuela Viento Fresco - 6° Grado 2026</p>
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha y Hora</th>
-                    <th>Estudiante</th>
-                    <th>Materia</th>
-                    <th>Tema Evaluado</th>
-                    <th>Aciertos</th>
-                    <th>Nota (100)</th>
-                </tr>
-            </thead>
-            <tbody id="tabla-notas">
-                <tr><td colspan="6" style="text-align: center;">Cargando notas desde la base de datos...</td></tr>
-            </tbody>
-        </table>
+        <!-- SECCIÓN 1: ALERTAS DE ESTUDIANTES EN RIESGO -->
+        <div class="card">
+            <h2>🚨 Alertas de Atención Prioritaria</h2>
+            <p style="font-size: 14px; color: #7f8c8d; margin-top:-5px;">Estudiantes con promedio general inferior a 70 o que están fallando en temas específicos.</p>
+            <div class="alerts-section" id="seccion-alertas">
+                <p style="color: #27ae60; font-weight: bold;">Excelente: Ningún estudiante requiere atención prioritaria en este momento.</p>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 2: PROMEDIOS GENERALES -->
+        <div class="card">
+            <h2>📊 Resumen por Estudiante</h2>
+            <!-- Agregamos el div responsivo alrededor de la tabla -->
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Estudiante</th>
+                            <th>Pruebas Realizadas</th>
+                            <th>Promedio General</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-promedios">
+                        <tr><td colspan="4" style="text-align: center;">Calculando promedios...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 3: HISTORIAL COMPLETO -->
+        <div class="card">
+            <h2>📝 Historial Detallado de Pruebas</h2>
+            <!-- Agregamos el div responsivo alrededor de la tabla -->
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Estudiante</th>
+                            <th>Materia / Tema Evaluado</th>
+                            <th>Aciertos</th>
+                            <th>Nota</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-historial">
+                        <tr><td colspan="5" style="text-align: center;">Cargando historial...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
-        // 1. Protección simple con contraseña
+        // Protección con contraseña
         window.onload = function() {
             const password = prompt("🔒 Acceso Restringido. Ingrese la contraseña de la profesora:");
-            if (password === "Viento2026") { // <-- AQUÍ PUEDE CAMBIAR SU CONTRASEÑA
+            if (password === "Viento2026") {
                 document.getElementById('contenido-panel').style.display = 'block';
-                cargarNotas();
+                cargarYAnalizarNotas();
             } else {
                 document.body.innerHTML = `<div style="text-align:center; margin-top:50px; color:red; font-size: 20px; font-weight: bold;">❌ Contraseña incorrecta. Acceso denegado.</div>`;
             }
         };
 
-        // 2. Descargar las notas de Firebase
-        async function cargarNotas() {
+        // Descarga y análisis de los datos
+        async function cargarYAnalizarNotas() {
             try {
                 const respuesta = await fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/calificaciones.json');
                 const datos = await respuesta.json();
                 
-                const tbody = document.getElementById('tabla-notas');
-                tbody.innerHTML = ''; // Limpiamos el mensaje de carga
+                const tbPromedios = document.getElementById('tabla-promedios');
+                const tbHistorial = document.getElementById('tabla-historial');
+                const divAlertas = document.getElementById('seccion-alertas');
+                
+                tbPromedios.innerHTML = '';
+                tbHistorial.innerHTML = '';
 
                 if (!datos) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Aún no hay calificaciones registradas.</td></tr>';
+                    tbHistorial.innerHTML = '<tr><td colspan="5" style="text-align: center;">Aún no hay calificaciones registradas.</td></tr>';
+                    tbPromedios.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin datos suficientes.</td></tr>';
                     return;
                 }
 
-                // Convertir el objeto de Firebase a un arreglo para poder ordenarlo
                 const listaNotas = Object.values(datos);
-                
-                // Ordenar para que las notas más recientes salgan de primero
-                listaNotas.reverse(); 
+                const diccionarioEstudiantes = {};
 
-                // Crear las filas de la tabla
-                listaNotas.forEach(registro => {
+                listaNotas.reverse().forEach(registro => {
                     const notaFinal = parseFloat(registro.nota);
-                    const claseNota = notaFinal >= 70 ? 'nota-alta' : 'nota-baja';
+                    const nombre = registro.nombre_completo || 'Anónimo';
+                    const materiaTema = `${registro.materia} - ${registro.tema}`;
 
-                    const fila = `
+                    const claseNota = notaFinal >= 70 ? 'nota-alta' : 'nota-baja';
+                    tbHistorial.innerHTML += `
                         <tr>
-                            <td style="font-size: 13px; color: #555;">${registro.fecha || 'Sin fecha'}</td>
-                            <td style="font-weight: bold; color: #2c3e50;">${registro.nombre_completo || 'Anónimo'}</td>
-                            <td>${registro.materia || '-'}</td>
-                            <td>${registro.tema || '-'}</td>
-                            <td>${registro.aciertos || 0} / ${registro.total_preguntas || 0}</td>
-                            <td class="${claseNota}">${notaFinal.toFixed(2)}</td>
+                            <td style="font-size: 12px; color: #7f8c8d;">${registro.fecha || 'N/A'}</td>
+                            <td style="font-weight: bold;">${nombre}</td>
+                            <td>${materiaTema}</td>
+                            <td>${registro.aciertos || 0}/${registro.total_preguntas || 0}</td>
+                            <td class="${claseNota}">${notaFinal.toFixed(0)}</td>
                         </tr>
                     `;
-                    tbody.innerHTML += fila;
+
+                    if (!diccionarioEstudiantes[nombre]) {
+                        diccionarioEstudiantes[nombre] = { sumaNotas: 0, totalPruebas: 0, temasFallados: new Set() };
+                    }
+                    
+                    diccionarioEstudiantes[nombre].sumaNotas += notaFinal;
+                    diccionarioEstudiantes[nombre].totalPruebas += 1;
+
+                    if (notaFinal < 70) {
+                        diccionarioEstudiantes[nombre].temasFallados.add(materiaTema);
+                    }
                 });
+
+                let htmlAlertas = '';
+
+                for (const [estudiante, datosEstudiante] of Object.entries(diccionarioEstudiantes)) {
+                    const promedio = datosEstudiante.sumaNotas / datosEstudiante.totalPruebas;
+                    const clasePromedio = promedio >= 70 ? 'nota-alta' : 'nota-baja';
+                    const estado = promedio >= 70 ? '✅ Aprobando' : '⚠️ En Riesgo';
+
+                    tbPromedios.innerHTML += `
+                        <tr>
+                            <td style="font-weight: bold;">${estudiante}</td>
+                            <td>${datosEstudiante.totalPruebas}</td>
+                            <td class="${clasePromedio}">${promedio.toFixed(1)}</td>
+                            <td>${estado}</td>
+                        </tr>
+                    `;
+
+                    if (promedio < 70 || datosEstudiante.temasFallados.size > 0) {
+                        
+                        let etiquetasTemas = '';
+                        datosEstudiante.temasFallados.forEach(tema => {
+                            etiquetasTemas += `<span class="alert-tag">${tema}</span>`;
+                        });
+
+                        htmlAlertas += `
+                            <div class="alert-card">
+                                <h3>${estudiante}</h3>
+                                <p><strong>Promedio Global:</strong> <span style="color: ${promedio >= 70 ? '#27ae60' : '#c0392b'};">${promedio.toFixed(1)}</span></p>
+                                <p><strong>Dificultades detectadas en:</strong></p>
+                                <div style="margin-top: 5px;">${etiquetasTemas}</div>
+                            </div>
+                        `;
+                    }
+                }
+
+                if (htmlAlertas !== '') {
+                    divAlertas.innerHTML = htmlAlertas;
+                }
 
             } catch (error) {
                 console.error("Error al cargar notas:", error);
-                document.getElementById('tabla-notas').innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">Error al conectar con la base de datos.</td></tr>';
+                document.getElementById('tabla-historial').innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">Error al conectar con la base de datos.</td></tr>';
             }
         }
     </script>
