@@ -3,122 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Profesores - Viento Fresco</title>
+    <title>Panel de la Profesora - Notas</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; color: #333; }
-        .header { background-color: #2c3e50; color: white; padding: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f4f8; margin: 0; padding: 20px; color: #333; }
+        .header { background-color: #2c3e50; color: white; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header h1 { margin: 0; font-size: 24px; }
         
-        /* Panel de Autorización (EL QUE TE FALTA VER) */
-        .auth-panel { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px; border-top: 5px solid #27ae60; }
-        .auth-panel h2 { margin-top: 0; color: #2c3e50; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-        .input-group input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; flex: 1; }
-        .btn-add { background-color: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-
-        /* Tabla y Controles */
-        .controls { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 15px; flex-wrap: wrap; }
-        .search-bar { flex: 1; min-width: 250px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; }
-        .btn-refresh { background-color: #3498db; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         
-        .table-container { background: white; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background-color: #ecf0f1; text-transform: uppercase; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #1abc9c; color: white; font-weight: bold; }
+        tr:hover { background-color: #f9f9f9; }
+        
+        .nota-alta { color: #27ae60; font-weight: bold; }
+        .nota-baja { color: #e74c3c; font-weight: bold; }
+        .btn-volver { display: inline-block; margin-bottom: 15px; text-decoration: none; color: #34495e; font-weight: bold; background: #e2e8f0; padding: 10px 15px; border-radius: 6px; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>Panel de Gestión - Viento Fresco</h1>
-        <p>Prof. Hillary Molina</p>
-    </div>
-
-    <div class="container">
-        <div class="auth-panel">
-            <h2>➕ Autorizar Nuevo Estudiante</h2>
-            <div class="input-group">
-                <input type="text" id="nuevo-nombre" placeholder="Nombre (Ej: Kathleen Sofia)">
-                <input type="text" id="nuevo-ap1" placeholder="Primer Apellido (Ej: Salazar)">
-                <input type="text" id="nuevo-ap2" placeholder="Segundo Apellido (Ej: Ruiz)">
-                <button class="btn-add" onclick="autorizarEstudiante()">Autorizar</button>
-            </div>
-            <p style="font-size: 12px; color: #7f8c8d;">* Escribe los datos y presiona Autorizar. El sistema le dará acceso inmediatamente.</p>
+    <div class="container" id="contenido-panel" style="display:none;">
+        <a href="index.html" class="btn-volver">⬅️ Volver al Menú Principal</a>
+        <div class="header">
+            <h1>Registro de Calificaciones - 6° Grado</h1>
+            <p>Prof. Hillary Molina</p>
         </div>
 
-        <div class="controls">
-            <input type="text" id="buscador" class="search-bar" placeholder="🔍 Buscar estudiante..." onkeyup="filtrarTabla()">
-            <button class="btn-refresh" onclick="cargarDatos()">🔄 Actualizar Tabla</button>
-        </div>
-
-        <div class="table-container">
-            <table id="tabla-calificaciones">
-                <thead>
-                    <tr>
-                        <th>Estudiante</th>
-                        <th>Materia</th>
-                        <th>Nota</th>
-                        <th>Fecha</th>
-                    </tr>
-                </thead>
-                <tbody id="tabla-body">
-                    <tr><td colspan="4" class="loading">Cargando...</td></tr>
-                </tbody>
-            </table>
-        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha y Hora</th>
+                    <th>Estudiante</th>
+                    <th>Materia</th>
+                    <th>Tema Evaluado</th>
+                    <th>Aciertos</th>
+                    <th>Nota (100)</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-notas">
+                <tr><td colspan="6" style="text-align: center;">Cargando notas desde la base de datos...</td></tr>
+            </tbody>
+        </table>
     </div>
 
     <script>
-        const baseUrl = 'https://escuela-viento-fresco-default-rtdb.firebaseio.com';
-        
-        // --- LÓGICA DE NORMALIZACIÓN ---
-        function normalizarTexto(texto) {
-            return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/z/g, "s").replace(/v/g, "b").replace(/ll/g, "y").trim();
-        }
+        // 1. Protección simple con contraseña
+        window.onload = function() {
+            const password = prompt("🔒 Acceso Restringido. Ingrese la contraseña de la profesora:");
+            if (password === "Viento2026") { // <-- AQUÍ PUEDE CAMBIAR SU CONTRASEÑA
+                document.getElementById('contenido-panel').style.display = 'block';
+                cargarNotas();
+            } else {
+                document.body.innerHTML = `<div style="text-align:center; margin-top:50px; color:red; font-size: 20px; font-weight: bold;">❌ Contraseña incorrecta. Acceso denegado.</div>`;
+            }
+        };
 
-        // --- AUTORIZAR NUEVO NIÑO ---
-        async function autorizarEstudiante() {
-            const n = document.getElementById('nuevo-nombre').value;
-            const a1 = document.getElementById('nuevo-ap1').value;
-            const a2 = document.getElementById('nuevo-ap2').value;
+        // 2. Descargar las notas de Firebase
+        async function cargarNotas() {
+            try {
+                const respuesta = await fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/calificaciones.json');
+                const datos = await respuesta.json();
+                
+                const tbody = document.getElementById('tabla-notas');
+                tbody.innerHTML = ''; // Limpiamos el mensaje de carga
 
-            if(!n || !a1 || !a2) { alert("Por favor completa los 3 campos."); return; }
+                if (!datos) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Aún no hay calificaciones registradas.</td></tr>';
+                    return;
+                }
 
-            const idNormalizado = normalizarTexto(`${n}${a1}${a2}`);
-            
-            const response = await fetch(`${baseUrl}/usuarios_autorizados/${idNormalizado}.json`, {
-                method: 'PUT',
-                body: JSON.stringify(true)
-            });
+                // Convertir el objeto de Firebase a un arreglo para poder ordenarlo
+                const listaNotas = Object.values(datos);
+                
+                // Ordenar para que las notas más recientes salgan de primero
+                listaNotas.reverse(); 
 
-            if(response.ok) {
-                alert(`¡Estudiante ${n} ${a1} autorizado correctamente! Ya puede ingresar a la plataforma.`);
-                document.getElementById('nuevo-nombre').value = '';
-                document.getElementById('nuevo-ap1').value = '';
-                document.getElementById('nuevo-ap2').value = '';
+                // Crear las filas de la tabla
+                listaNotas.forEach(registro => {
+                    const notaFinal = parseFloat(registro.nota);
+                    const claseNota = notaFinal >= 70 ? 'nota-alta' : 'nota-baja';
+
+                    const fila = `
+                        <tr>
+                            <td style="font-size: 13px; color: #555;">${registro.fecha || 'Sin fecha'}</td>
+                            <td style="font-weight: bold; color: #2c3e50;">${registro.nombre_completo || 'Anónimo'}</td>
+                            <td>${registro.materia || '-'}</td>
+                            <td>${registro.tema || '-'}</td>
+                            <td>${registro.aciertos || 0} / ${registro.total_preguntas || 0}</td>
+                            <td class="${claseNota}">${notaFinal.toFixed(2)}</td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += fila;
+                });
+
+            } catch (error) {
+                console.error("Error al cargar notas:", error);
+                document.getElementById('tabla-notas').innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">Error al conectar con la base de datos.</td></tr>';
             }
         }
-
-        // --- CARGAR CALIFICACIONES ---
-        async function cargarDatos() {
-            try {
-                const respuesta = await fetch(`${baseUrl}/calificaciones.json`);
-                const data = await respuesta.json();
-                const tbody = document.getElementById('tabla-body');
-                tbody.innerHTML = '';
-
-                if (!data) { tbody.innerHTML = '<tr><td colspan="4">No hay notas.</td></tr>'; return; }
-
-                Object.keys(data).forEach(key => {
-                    const reg = data[key];
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${reg.nombre_completo}</td><td>${reg.materia}</td><td>${reg.nota}</td><td>${reg.fecha}</td>`;
-                    tbody.appendChild(tr);
-                });
-            } catch (e) { alert("Error al cargar notas."); }
-        }
-
-        window.onload = cargarDatos;
     </script>
 </body>
 </html>
