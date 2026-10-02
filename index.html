@@ -171,10 +171,14 @@
                 const listaNotas = Object.values(datosNotas).reverse();
                 
                 listaNotas.forEach(registro => {
-                    const idEstudiante = registro.id_estudiante || registro.nombre_completo.toLowerCase().replace(/ /g, '');
+                    // ¡PROTECCIÓN CRÍTICA! Si Firebase devuelve un registro vacío/nulo o borrado, saltamos al siguiente
+                    if (!registro) return; 
+
                     const nombreReal = registro.nombre_completo || 'Anónimo';
+                    // Evitar que el panel colapse si falta información
+                    const idEstudiante = registro.id_estudiante ? registro.id_estudiante : nombreReal.toLowerCase().replace(/ /g, '');
                     const notaFinal = parseFloat(registro.nota) || 0;
-                    const materiaTema = `${registro.materia} - ${registro.tema}`;
+                    const materiaTema = `${registro.materia || 'Materia'} - ${registro.tema || 'Tema'}`;
                     const fechaPrueba = registro.fecha || 'Fecha desconocida';
 
                     // Si el niño no está en nuestra lista virtual, lo agregamos
@@ -212,20 +216,19 @@
 
                 // 2. PROCESAR SESIONES (Para los que entraron pero NO hicieron nada)
                 for (const [id, sesion] of Object.entries(datosSesiones)) {
+                    if (!sesion) continue; // Protección por si hay sesiones vacías
+
                     if (!estudiantesGlobal[id]) {
-                        // El niño entró a la página, pero no hizo pruebas. 
-                        // Mostramos el ID que se generó a partir de su nombre (ej. mariafernandarojas)
                         estudiantesGlobal[id] = {
                             nombre: `<span style="color:#7f8c8d; font-family:monospace;">ID: ${id}</span>`, 
-                            ultimaActividad: sesion.lastLogin,
+                            ultimaActividad: sesion.lastLogin || 'Fecha desconocida',
                             tipoActividad: 'Ingresó a la página, pero no hizo prácticas.',
                             totalPruebas: 0,
                             sumaNotas: 0,
                             temasFallados: new Set()
                         };
                     } else {
-                        // Si ya estaba en la lista, le actualizamos la fecha de conexión
-                        estudiantesGlobal[id].ultimaActividad = sesion.lastLogin;
+                        estudiantesGlobal[id].ultimaActividad = sesion.lastLogin || estudiantesGlobal[id].ultimaActividad;
                         estudiantesGlobal[id].tipoActividad = 'Conexión reciente';
                     }
                 }
