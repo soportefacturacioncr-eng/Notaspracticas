@@ -24,22 +24,23 @@
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px; }
         .card h2 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #1abc9c; padding-bottom: 10px; font-size: 20px; }
         
-        /* NUEVO: Contenedor responsivo para móviles */
+        /* Contenedor responsivo para móviles */
         .table-responsive {
             width: 100%;
-            overflow-x: auto; /* Permite deslizar solo la tabla de lado a lado */
-            -webkit-overflow-scrolling: touch; /* Suaviza el desplazamiento en iPhone/Android */
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch; 
             margin-top: 15px;
         }
 
-        /* Estilos de Tabla actualizados */
-        table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 600px; /* Evita que la tabla se encoja de más en celulares */ }
+        /* Estilos de Tabla */
+        table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 600px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f9fa; color: #2c3e50; font-weight: bold; white-space: nowrap; }
         tr:hover { background-color: #f1f4f6; }
         
         .nota-alta { color: #27ae60; font-weight: bold; }
         .nota-baja { color: #e74c3c; font-weight: bold; }
+        .estado-pendiente { color: #f39c12; font-style: italic; }
     </style>
 </head>
 <body>
@@ -61,10 +62,29 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 2: PROMEDIOS GENERALES -->
+        <!-- SECCIÓN 2: CONTROL DE ACCESO (NUEVO) -->
         <div class="card">
-            <h2>📊 Resumen por Estudiante</h2>
-            <!-- Agregamos el div responsivo alrededor de la tabla -->
+            <h2>👥 Control de Acceso y Conexión</h2>
+            <p style="font-size: 14px; color: #7f8c8d; margin-top:-5px;">Monitoreo de quiénes han ingresado a la plataforma y quiénes faltan.</p>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Estudiante (ID Autorizado)</th>
+                            <th>Último Ingreso Registrado</th>
+                            <th>Estado de Conexión</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-sesiones">
+                        <tr><td colspan="3" style="text-align: center;">Cargando lista de accesos...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 3: PROMEDIOS GENERALES -->
+        <div class="card">
+            <h2>📊 Resumen de Notas por Estudiante</h2>
             <div class="table-responsive">
                 <table>
                     <thead>
@@ -72,7 +92,7 @@
                             <th>Estudiante</th>
                             <th>Pruebas Realizadas</th>
                             <th>Promedio General</th>
-                            <th>Estado</th>
+                            <th>Rendimiento</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-promedios">
@@ -82,15 +102,14 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 3: HISTORIAL COMPLETO -->
+        <!-- SECCIÓN 4: HISTORIAL COMPLETO -->
         <div class="card">
             <h2>📝 Historial Detallado de Pruebas</h2>
-            <!-- Agregamos el div responsivo alrededor de la tabla -->
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
-                            <th>Fecha</th>
+                            <th>Fecha de Prueba</th>
                             <th>Estudiante</th>
                             <th>Materia / Tema Evaluado</th>
                             <th>Aciertos</th>
@@ -111,34 +130,70 @@
             const password = prompt("🔒 Acceso Restringido. Ingrese la contraseña de la profesora:");
             if (password === "Viento2026") {
                 document.getElementById('contenido-panel').style.display = 'block';
-                cargarYAnalizarNotas();
+                cargarYAnalizarDatos();
             } else {
                 document.body.innerHTML = `<div style="text-align:center; margin-top:50px; color:red; font-size: 20px; font-weight: bold;">❌ Contraseña incorrecta. Acceso denegado.</div>`;
             }
         };
 
-        // Descarga y análisis de los datos
-        async function cargarYAnalizarNotas() {
+        // Descarga y análisis MÚLTIPLE de los datos (Notas, Sesiones y Lista Autorizada)
+        async function cargarYAnalizarDatos() {
             try {
-                const respuesta = await fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/calificaciones.json');
-                const datos = await respuesta.json();
+                // Hacemos 3 llamadas simultáneas a Firebase para cargar todo rápido
+                const [resNotas, resSesiones, resAutorizados] = await Promise.all([
+                    fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/calificaciones.json'),
+                    fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/sesiones.json'),
+                    fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/usuarios_autorizados.json')
+                ]);
+
+                const datosNotas = await resNotas.json();
+                const datosSesiones = await resSesiones.json() || {};
+                const datosAutorizados = await resAutorizados.json() || {};
                 
                 const tbPromedios = document.getElementById('tabla-promedios');
                 const tbHistorial = document.getElementById('tabla-historial');
+                const tbSesiones = document.getElementById('tabla-sesiones');
                 const divAlertas = document.getElementById('seccion-alertas');
                 
                 tbPromedios.innerHTML = '';
                 tbHistorial.innerHTML = '';
+                tbSesiones.innerHTML = '';
 
-                if (!datos) {
-                    tbHistorial.innerHTML = '<tr><td colspan="5" style="text-align: center;">Aún no hay calificaciones registradas.</td></tr>';
-                    tbPromedios.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin datos suficientes.</td></tr>';
-                    return;
+                // ==========================================
+                // 1. PROCESAR CONTROL DE ACCESO (SESIONES)
+                // ==========================================
+                if (datosAutorizados && Object.keys(datosAutorizados).length > 0) {
+                    for (const [idEstudiante, autorizado] of Object.entries(datosAutorizados)) {
+                        const sesion = datosSesiones[idEstudiante]; // Busca si el ID tiene una sesión registrada
+                        
+                        const ultimoIngreso = sesion ? sesion.lastLogin : '<span class="estado-pendiente">Nunca ha ingresado</span>';
+                        const estado = sesion ? '<span class="nota-alta">✅ Activo</span>' : '<span class="nota-baja">❌ Pendiente</span>';
+                        
+                        tbSesiones.innerHTML += `
+                            <tr>
+                                <td style="font-weight: bold; text-transform: capitalize;">${idEstudiante}</td>
+                                <td>${ultimoIngreso}</td>
+                                <td>${estado}</td>
+                            </tr>
+                        `;
+                    }
+                } else {
+                    tbSesiones.innerHTML = '<tr><td colspan="3" style="text-align: center;">No hay estudiantes autorizados en la base de datos.</td></tr>';
                 }
 
-                const listaNotas = Object.values(datos);
+                // ==========================================
+                // 2. PROCESAR NOTAS, HISTORIAL Y ALERTAS
+                // ==========================================
+                if (!datosNotas) {
+                    tbHistorial.innerHTML = '<tr><td colspan="5" style="text-align: center;">Aún no hay calificaciones registradas.</td></tr>';
+                    tbPromedios.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin datos suficientes.</td></tr>';
+                    return; // Si no hay notas, terminamos aquí.
+                }
+
+                const listaNotas = Object.values(datosNotas);
                 const diccionarioEstudiantes = {};
 
+                // Llenar el historial y recolectar datos para promedios
                 listaNotas.reverse().forEach(registro => {
                     const notaFinal = parseFloat(registro.nota);
                     const nombre = registro.nombre_completo || 'Anónimo';
@@ -169,6 +224,7 @@
 
                 let htmlAlertas = '';
 
+                // Calcular promedios y generar alertas
                 for (const [estudiante, datosEstudiante] of Object.entries(diccionarioEstudiantes)) {
                     const promedio = datosEstudiante.sumaNotas / datosEstudiante.totalPruebas;
                     const clasePromedio = promedio >= 70 ? 'nota-alta' : 'nota-baja';
@@ -184,7 +240,6 @@
                     `;
 
                     if (promedio < 70 || datosEstudiante.temasFallados.size > 0) {
-                        
                         let etiquetasTemas = '';
                         datosEstudiante.temasFallados.forEach(tema => {
                             etiquetasTemas += `<span class="alert-tag">${tema}</span>`;
@@ -206,7 +261,7 @@
                 }
 
             } catch (error) {
-                console.error("Error al cargar notas:", error);
+                console.error("Error al cargar datos:", error);
                 document.getElementById('tabla-historial').innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">Error al conectar con la base de datos.</td></tr>';
             }
         }
