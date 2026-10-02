@@ -139,7 +139,6 @@
         // Descarga y análisis de los datos
         async function cargarYAnalizarDatos() {
             try {
-                // Descargamos Notas (historial viejo/nombres reales) y Sesiones (conexiones)
                 const [resNotas, resSesiones] = await Promise.all([
                     fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/calificaciones.json'),
                     fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/sesiones.json')
@@ -157,34 +156,32 @@
                 tbHistorial.innerHTML = '';
                 tbSesiones.innerHTML = '';
 
-                if (Object.keys(datosNotas).length === 0 && Object.keys(datosSesiones).length === 0) {
-                    tbHistorial.innerHTML = '<tr><td colspan="5" style="text-align: center;">La plataforma está vacía.</td></tr>';
-                    tbPromedios.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin datos suficientes.</td></tr>';
-                    tbSesiones.innerHTML = '<tr><td colspan="3" style="text-align: center;">Nadie ha ingresado aún.</td></tr>';
-                    return; 
-                }
-
-                // Diccionario que creará la lista de niños automáticamente
                 const estudiantesGlobal = {};
+                let contadorValidos = 0; // Para saber si realmente hay exámenes reales
 
-                // 1. PROCESAR HISTORIAL (Aquí capturamos los nombres reales tal cual los escribieron)
+                // 1. PROCESAR HISTORIAL (Filtrando la "basura")
                 const listaNotas = Object.values(datosNotas).reverse();
                 
                 listaNotas.forEach(registro => {
-                    // ¡PROTECCIÓN CRÍTICA! Si Firebase devuelve un registro vacío/nulo o borrado, saltamos al siguiente
                     if (!registro) return; 
 
-                    const nombreReal = registro.nombre_completo || 'Anónimo';
-                    // Evitar que el panel colapse si falta información
-                    const idEstudiante = registro.id_estudiante ? registro.id_estudiante : nombreReal.toLowerCase().replace(/ /g, '');
+                    const nombreReal = registro.nombre_completo;
+                    const idEstudiante = registro.id_estudiante;
+
+                    // FILTRO DE LIMPIEZA: Ignorar datos sin nombre, "Anónimos" o "errores" viejos
+                    if (!nombreReal || nombreReal === 'Estudiante Anónimo' || nombreReal === 'Anónimo' || idEstudiante === 'error' || idEstudiante === 'anonimo') {
+                        return; 
+                    }
+
+                    contadorValidos++;
+                    const idLimpio = idEstudiante ? idEstudiante : nombreReal.toLowerCase().replace(/ /g, '');
                     const notaFinal = parseFloat(registro.nota) || 0;
                     const materiaTema = `${registro.materia || 'Materia'} - ${registro.tema || 'Tema'}`;
                     const fechaPrueba = registro.fecha || 'Fecha desconocida';
 
-                    // Si el niño no está en nuestra lista virtual, lo agregamos
-                    if (!estudiantesGlobal[idEstudiante]) {
-                        estudiantesGlobal[idEstudiante] = {
-                            nombre: nombreReal, // Guardamos el nombre exacto que digitó
+                    if (!estudiantesGlobal[idLimpio]) {
+                        estudiantesGlobal[idLimpio] = {
+                            nombre: nombreReal,
                             ultimaActividad: fechaPrueba,
                             tipoActividad: 'Entregó una práctica',
                             totalPruebas: 0,
@@ -193,15 +190,13 @@
                         };
                     }
 
-                    // Sumamos las notas al promedio
-                    estudiantesGlobal[idEstudiante].totalPruebas += 1;
-                    estudiantesGlobal[idEstudiante].sumaNotas += notaFinal;
+                    estudiantesGlobal[idLimpio].totalPruebas += 1;
+                    estudiantesGlobal[idLimpio].sumaNotas += notaFinal;
 
                     if (notaFinal < 70) {
-                        estudiantesGlobal[idEstudiante].temasFallados.add(materiaTema);
+                        estudiantesGlobal[idLimpio].temasFallados.add(materiaTema);
                     }
 
-                    // Llenar tabla de historial
                     const claseNota = notaFinal >= 70 ? 'nota-alta' : 'nota-baja';
                     tbHistorial.innerHTML += `
                         <tr>
@@ -214,9 +209,10 @@
                     `;
                 });
 
-                // 2. PROCESAR SESIONES (Para los que entraron pero NO hicieron nada)
+                // 2. PROCESAR SESIONES (Filtrando la "basura")
                 for (const [id, sesion] of Object.entries(datosSesiones)) {
-                    if (!sesion) continue; // Protección por si hay sesiones vacías
+                    // FILTRO DE LIMPIEZA: Ignorar sesiones fantasmas
+                    if (!sesion || id === 'error' || id === 'anonimo' || id === 'null') continue; 
 
                     if (!estudiantesGlobal[id]) {
                         estudiantesGlobal[id] = {
@@ -233,12 +229,19 @@
                     }
                 }
 
-                // 3. IMPRIMIR TABLAS DE ACCESOS Y PROMEDIOS
+                // 3. VERIFICAR SI QUEDARON DATOS DESPUÉS DE LA LIMPIEZA
+                if (Object.keys(estudiantesGlobal).length === 0) {
+                    tbHistorial.innerHTML = '<tr><td colspan="5" style="text-align: center;">La plataforma está limpia. Aún no hay registros válidos de estudiantes.</td></tr>';
+                    tbPromedios.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin datos suficientes.</td></tr>';
+                    tbSesiones.innerHTML = '<tr><td colspan="3" style="text-align: center;">Ningún estudiante ha ingresado aún.</td></tr>';
+                    return;
+                }
+
+                // 4. IMPRIMIR TABLAS DE ACCESOS Y PROMEDIOS
                 let htmlAlertas = '';
 
                 for (const [id, datos] of Object.entries(estudiantesGlobal)) {
                     
-                    // --- Tabla de Accesos (Muestra a TODOS) ---
                     const badgeConexion = datos.totalPruebas > 0 ? '<span class="estado-historico">✅ Activo (Tiene Pruebas)</span>' : '<span class="nota-baja">⚠️ Entró, pero no resolvió nada</span>';
                     tbSesiones.innerHTML += `
                         <tr>
@@ -248,7 +251,6 @@
                         </tr>
                     `;
 
-                    // --- Tabla de Promedios y Alertas (Solo si hicieron pruebas) ---
                     if (datos.totalPruebas > 0) {
                         const promedio = datos.sumaNotas / datos.totalPruebas;
                         const clasePromedio = promedio >= 70 ? 'nota-alta' : 'nota-baja';
@@ -263,7 +265,6 @@
                             </tr>
                         `;
 
-                        // Generar alertas rojas si el promedio es malo o hay temas fallados
                         if (promedio < 70 || datos.temasFallados.size > 0) {
                             let etiquetasTemas = '';
                             datos.temasFallados.forEach(tema => {
