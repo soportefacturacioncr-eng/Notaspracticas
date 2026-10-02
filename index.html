@@ -17,8 +17,7 @@
         .alert-card { background: #fff3f3; border-left: 5px solid #e74c3c; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .alert-card h3 { margin: 0 0 10px 0; color: #c0392b; font-size: 18px; }
         .alert-card p { margin: 5px 0; font-size: 14px; color: #333; }
-        .alert-tag { display: inline-block; background: #e74c3c; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; margin: 2px; font-weight: bold; }
-
+        
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px; }
         .card h2 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #1abc9c; padding-bottom: 10px; font-size: 20px; }
         
@@ -30,7 +29,6 @@
         
         .nota-alta { color: #27ae60; font-weight: bold; }
         .nota-baja { color: #e74c3c; font-weight: bold; }
-        .estado-historico { color: #2980b9; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -44,21 +42,23 @@
         </div>
 
         <div class="card">
-            <h2>🚨 Alertas de Atención Prioritaria</h2>
+            <h2>🚨 Alertas de Estudiantes en Riesgo (Menos de 70)</h2>
+            <p style="font-size: 14px; color: #7f8c8d; margin-top:-5px;">Este cuadro solo destaca a quienes necesitan ayuda urgente. Todos los demás están en las tablas de abajo.</p>
             <div class="alerts-section" id="seccion-alertas">
-                <p style="color: #27ae60; font-weight: bold;">Excelente: Ningún estudiante requiere atención prioritaria en este momento.</p>
+                <p style="color: #27ae60; font-weight: bold;">Cargando alertas...</p>
             </div>
         </div>
 
         <div class="card">
-            <h2>👥 Control de Acceso y Conexión</h2>
+            <h2>👥 Control de Acceso (TODOS los estudiantes)</h2>
+            <p style="font-size: 14px; color: #7f8c8d; margin-top:-5px;">Lista completa de quiénes han entrado a la plataforma.</p>
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
-                            <th>Nombre del Estudiante</th>
-                            <th>Última Actividad Detectada</th>
-                            <th>Estado de Participación</th>
+                            <th>Estudiante / ID</th>
+                            <th>Última Conexión Registrada</th>
+                            <th>¿Hizo prácticas?</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-sesiones">
@@ -69,15 +69,15 @@
         </div>
 
         <div class="card">
-            <h2>📊 Resumen de Notas por Estudiante</h2>
+            <h2>📊 Promedios (TODOS los estudiantes)</h2>
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
                             <th>Estudiante</th>
-                            <th>Pruebas Realizadas</th>
-                            <th>Promedio General</th>
-                            <th>Rendimiento</th>
+                            <th>Total de Pruebas Hechas</th>
+                            <th>Promedio Exacto</th>
+                            <th>Estado</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-promedios">
@@ -88,16 +88,17 @@
         </div>
 
         <div class="card">
-            <h2>📝 Historial Detallado de Pruebas</h2>
+            <h2>📝 Historial Completo (TODAS las prácticas)</h2>
+            <p style="font-size: 14px; color: #7f8c8d; margin-top:-5px;">Aquí se muestran todas las notas, sin importar si sacaron 100 o 0.</p>
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
-                            <th>Fecha de Prueba</th>
+                            <th>Fecha</th>
                             <th>Estudiante</th>
-                            <th>Materia / Tema Evaluado</th>
+                            <th>Práctica Evaluada</th>
                             <th>Aciertos</th>
-                            <th>Nota</th>
+                            <th>Nota Final</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-historial">
@@ -121,6 +122,7 @@
 
         async function cargarYAnalizarDatos() {
             try {
+                // Obtenemos todos los datos crudos de Firebase
                 const [resNotas, resSesiones] = await Promise.all([
                     fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/calificaciones.json'),
                     fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/sesiones.json')
@@ -135,47 +137,31 @@
                 const divAlertas = document.getElementById('seccion-alertas');
                 
                 tbPromedios.innerHTML = ''; tbHistorial.innerHTML = ''; tbSesiones.innerHTML = '';
+                let htmlAlertas = '';
 
+                // Objeto para agrupar a los niños
                 const estudiantesGlobal = {};
 
-                if (Object.keys(datosNotas).length === 0 && Object.keys(datosSesiones).length === 0) {
-                    tbHistorial.innerHTML = '<tr><td colspan="5" style="text-align: center;">La plataforma está vacía.</td></tr>';
-                    tbPromedios.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin datos suficientes.</td></tr>';
-                    tbSesiones.innerHTML = '<tr><td colspan="3" style="text-align: center;">Nadie ha ingresado aún.</td></tr>';
-                    return; 
+                // ==========================================
+                // 1. CARGAR HISTORIAL COMPLETO SIN FILTROS
+                // ==========================================
+                const listaNotas = Object.values(datosNotas).reverse();
+                
+                if (listaNotas.length === 0) {
+                    tbHistorial.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay notas registradas en la base de datos.</td></tr>';
                 }
 
-                // 1. PROCESAR HISTORIAL DE NOTAS
-                const listaNotas = Object.values(datosNotas).reverse();
                 listaNotas.forEach(registro => {
-                    if (!registro) return; 
+                    if (!registro) return; // Si por error de red llegó vacío, lo salta
 
-                    const nombreReal = registro.nombre_completo || 'Sin Nombre Registrado';
-                    const idLimpio = registro.id_estudiante || nombreReal.toLowerCase().replace(/ /g, '');
-                    
-                    // Ignoramos la basura de sistema ("error", "anonimo", "null") pero dejamos pasar a los estudiantes reales
-                    if (idLimpio === 'error' || idLimpio === 'anonimo' || idLimpio === 'null') return;
-
+                    // Tomamos el nombre exacto que venga. Si no viene, ponemos "Desconocido".
+                    const nombreReal = registro.nombre_completo || 'Desconocido';
+                    const idLimpio = registro.id_estudiante || nombreReal; 
                     const notaFinal = parseFloat(registro.nota) || 0;
                     const materiaTema = `${registro.materia || 'Materia'} - ${registro.tema || 'Tema'}`;
                     const fechaPrueba = registro.fecha || 'Fecha desconocida';
 
-                    if (!estudiantesGlobal[idLimpio]) {
-                        estudiantesGlobal[idLimpio] = {
-                            nombre: nombreReal,
-                            ultimaActividad: fechaPrueba,
-                            tipoActividad: 'Entregó una práctica',
-                            totalPruebas: 0,
-                            sumaNotas: 0,
-                            temasFallados: new Set()
-                        };
-                    }
-
-                    estudiantesGlobal[idLimpio].totalPruebas += 1;
-                    estudiantesGlobal[idLimpio].sumaNotas += notaFinal;
-
-                    if (notaFinal < 70) estudiantesGlobal[idLimpio].temasFallados.add(materiaTema);
-
+                    // IMPRIMIMOS DIRECTO AL HISTORIAL (No hay restricciones de nota aquí)
                     const claseNota = notaFinal >= 70 ? 'nota-alta' : 'nota-baja';
                     tbHistorial.innerHTML += `
                         <tr>
@@ -186,51 +172,66 @@
                             <td class="${claseNota}">${notaFinal.toFixed(0)}</td>
                         </tr>
                     `;
+
+                    // Sumamos para los promedios
+                    if (!estudiantesGlobal[idLimpio]) {
+                        estudiantesGlobal[idLimpio] = {
+                            nombre: nombreReal,
+                            ultimaActividad: fechaPrueba,
+                            totalPruebas: 0,
+                            sumaNotas: 0
+                        };
+                    }
+
+                    estudiantesGlobal[idLimpio].totalPruebas += 1;
+                    estudiantesGlobal[idLimpio].sumaNotas += notaFinal;
                 });
 
-                // 2. PROCESAR SESIONES (Conexiones recientes)
-                for (const [id, sesion] of Object.entries(datosSesiones)) {
-                    if (!sesion || id === 'error' || id === 'anonimo' || id === 'null') continue; 
-
+                // ==========================================
+                // 2. CARGAR SESIONES
+                // ==========================================
+                const listaSesiones = Object.entries(datosSesiones);
+                
+                for (const [id, sesion] of listaSesiones) {
+                    if (!sesion) continue; 
+                    
                     if (!estudiantesGlobal[id]) {
-                        // Entró pero no hizo pruebas
                         estudiantesGlobal[id] = {
-                            nombre: `<span style="text-transform: capitalize;">${id}</span>`, 
+                            nombre: id, 
                             ultimaActividad: sesion.lastLogin || 'Fecha desconocida',
-                            tipoActividad: 'Ingresó a la plataforma, pero no entregó prácticas.',
                             totalPruebas: 0,
-                            sumaNotas: 0,
-                            temasFallados: new Set()
+                            sumaNotas: 0
                         };
                     } else {
-                        // Ya existía en las notas, actualizamos su última conexión
                         estudiantesGlobal[id].ultimaActividad = sesion.lastLogin || estudiantesGlobal[id].ultimaActividad;
-                        estudiantesGlobal[id].tipoActividad = 'Conexión reciente detectada';
                     }
                 }
 
-                // 3. RENDERIZAR TABLAS Y ALERTAS
-                let htmlAlertas = '';
-                let hayEstudiantes = false;
+                if (Object.keys(estudiantesGlobal).length === 0) {
+                    tbSesiones.innerHTML = '<tr><td colspan="3" style="text-align: center;">Nadie ha ingresado aún.</td></tr>';
+                    tbPromedios.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin datos para calcular.</td></tr>';
+                }
 
+                // ==========================================
+                // 3. IMPRIMIR ACCESOS Y PROMEDIOS
+                // ==========================================
                 for (const [id, datos] of Object.entries(estudiantesGlobal)) {
-                    hayEstudiantes = true;
                     
-                    // Tabla Accesos
-                    const badgeConexion = datos.totalPruebas > 0 ? '<span class="estado-historico">✅ Activo (Tiene Pruebas)</span>' : '<span class="nota-baja">⚠️ Solo ingresó, no resolvió</span>';
+                    // Tabla de Accesos
+                    const estadoPracticas = datos.totalPruebas > 0 ? '<span style="color: #27ae60; font-weight:bold;">✅ Sí (Revisar historial)</span>' : '<span style="color: #e74c3c; font-weight:bold;">❌ No ha hecho nada</span>';
                     tbSesiones.innerHTML += `
                         <tr>
                             <td style="font-weight: bold;">${datos.nombre}</td>
-                            <td>${datos.ultimaActividad} <br><span style="font-size: 11px; color:#7f8c8d;">${datos.tipoActividad}</span></td>
-                            <td>${badgeConexion}</td>
+                            <td>${datos.ultimaActividad}</td>
+                            <td>${estadoPracticas}</td>
                         </tr>
                     `;
 
-                    // Tabla Promedios
+                    // Tabla de Promedios
                     if (datos.totalPruebas > 0) {
                         const promedio = datos.sumaNotas / datos.totalPruebas;
                         const clasePromedio = promedio >= 70 ? 'nota-alta' : 'nota-baja';
-                        const estado = promedio >= 70 ? '✅ Aprobando' : '⚠️ En Riesgo';
+                        const estado = promedio >= 70 ? '✅ Aprobado' : '⚠️ Reprobado';
 
                         tbPromedios.innerHTML += `
                             <tr>
@@ -241,32 +242,28 @@
                             </tr>
                         `;
 
-                        // Alertas Rojas
-                        if (promedio < 70 || datos.temasFallados.size > 0) {
-                            let etiquetasTemas = '';
-                            datos.temasFallados.forEach(tema => etiquetasTemas += `<span class="alert-tag">${tema}</span>`);
-
+                        // Crear alertas rojas SOLO si el promedio es menor a 70
+                        if (promedio < 70) {
                             htmlAlertas += `
                                 <div class="alert-card">
                                     <h3>${datos.nombre}</h3>
-                                    <p><strong>Promedio Global:</strong> <span style="color: ${promedio >= 70 ? '#27ae60' : '#c0392b'};">${promedio.toFixed(1)}</span></p>
-                                    <p><strong>Dificultades detectadas en:</strong></p>
-                                    <div style="margin-top: 5px;">${etiquetasTemas}</div>
+                                    <p><strong>Promedio Actual:</strong> <span style="color: #c0392b;">${promedio.toFixed(1)}</span></p>
+                                    <p>Este estudiante requiere seguimiento.</p>
                                 </div>
                             `;
                         }
                     }
                 }
 
-                if (!hayEstudiantes) {
-                    tbSesiones.innerHTML = '<tr><td colspan="3" style="text-align: center;">No hay estudiantes registrados válidos aún.</td></tr>';
+                if (htmlAlertas !== '') {
+                    divAlertas.innerHTML = htmlAlertas;
+                } else if (Object.keys(estudiantesGlobal).length > 0) {
+                    divAlertas.innerHTML = '<p style="color: #27ae60; font-weight: bold;">Todos los estudiantes tienen promedio mayor a 70.</p>';
                 }
 
-                if (htmlAlertas !== '') divAlertas.innerHTML = htmlAlertas;
-
             } catch (error) {
-                console.error("Error al cargar datos:", error);
-                document.getElementById('tabla-historial').innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">Error al conectar con la base de datos. Verifica tu internet.</td></tr>';
+                console.error("Error completo:", error);
+                document.getElementById('tabla-historial').innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">Error al conectar con la base de datos. Verifica tu conexión a internet o la configuración de Firebase.</td></tr>';
             }
         }
     </script>
