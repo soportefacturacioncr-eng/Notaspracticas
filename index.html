@@ -40,7 +40,7 @@
         
         .nota-alta { color: #27ae60; font-weight: bold; }
         .nota-baja { color: #e74c3c; font-weight: bold; }
-        .estado-pendiente { color: #f39c12; font-style: italic; }
+        .estado-historico { color: #2980b9; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -62,17 +62,17 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 2: CONTROL DE ACCESO (NUEVO) -->
+        <!-- SECCIÓN 2: CONTROL DE ACCESO -->
         <div class="card">
             <h2>👥 Control de Acceso y Conexión</h2>
-            <p style="font-size: 14px; color: #7f8c8d; margin-top:-5px;">Monitoreo de quiénes han ingresado a la plataforma y quiénes faltan.</p>
+            <p style="font-size: 14px; color: #7f8c8d; margin-top:-5px;">Muestra a todos los estudiantes que han entrado, con los nombres tal cual los ingresaron.</p>
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
-                            <th>Estudiante (ID Autorizado)</th>
-                            <th>Último Ingreso Registrado</th>
-                            <th>Estado de Conexión</th>
+                            <th>Nombre del Estudiante</th>
+                            <th>Última Actividad Detectada</th>
+                            <th>Estado de Participación</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-sesiones">
@@ -136,19 +136,17 @@
             }
         };
 
-        // Descarga y análisis MÚLTIPLE de los datos (Notas, Sesiones y Lista Autorizada)
+        // Descarga y análisis de los datos
         async function cargarYAnalizarDatos() {
             try {
-                // Hacemos 3 llamadas simultáneas a Firebase para cargar todo rápido
-                const [resNotas, resSesiones, resAutorizados] = await Promise.all([
+                // Descargamos Notas (historial viejo/nombres reales) y Sesiones (conexiones)
+                const [resNotas, resSesiones] = await Promise.all([
                     fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/calificaciones.json'),
-                    fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/sesiones.json'),
-                    fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/usuarios_autorizados.json')
+                    fetch('https://escuela-viento-fresco-default-rtdb.firebaseio.com/sesiones.json')
                 ]);
 
-                const datosNotas = await resNotas.json();
+                const datosNotas = await resNotas.json() || {};
                 const datosSesiones = await resSesiones.json() || {};
-                const datosAutorizados = await resAutorizados.json() || {};
                 
                 const tbPromedios = document.getElementById('tabla-promedios');
                 const tbHistorial = document.getElementById('tabla-historial');
@@ -159,100 +157,125 @@
                 tbHistorial.innerHTML = '';
                 tbSesiones.innerHTML = '';
 
-                // ==========================================
-                // 1. PROCESAR CONTROL DE ACCESO (SESIONES)
-                // ==========================================
-                if (datosAutorizados && Object.keys(datosAutorizados).length > 0) {
-                    for (const [idEstudiante, autorizado] of Object.entries(datosAutorizados)) {
-                        const sesion = datosSesiones[idEstudiante]; // Busca si el ID tiene una sesión registrada
-                        
-                        const ultimoIngreso = sesion ? sesion.lastLogin : '<span class="estado-pendiente">Nunca ha ingresado</span>';
-                        const estado = sesion ? '<span class="nota-alta">✅ Activo</span>' : '<span class="nota-baja">❌ Pendiente</span>';
-                        
-                        tbSesiones.innerHTML += `
-                            <tr>
-                                <td style="font-weight: bold; text-transform: capitalize;">${idEstudiante}</td>
-                                <td>${ultimoIngreso}</td>
-                                <td>${estado}</td>
-                            </tr>
-                        `;
-                    }
-                } else {
-                    tbSesiones.innerHTML = '<tr><td colspan="3" style="text-align: center;">No hay estudiantes autorizados en la base de datos.</td></tr>';
-                }
-
-                // ==========================================
-                // 2. PROCESAR NOTAS, HISTORIAL Y ALERTAS
-                // ==========================================
-                if (!datosNotas) {
-                    tbHistorial.innerHTML = '<tr><td colspan="5" style="text-align: center;">Aún no hay calificaciones registradas.</td></tr>';
+                if (Object.keys(datosNotas).length === 0 && Object.keys(datosSesiones).length === 0) {
+                    tbHistorial.innerHTML = '<tr><td colspan="5" style="text-align: center;">La plataforma está vacía.</td></tr>';
                     tbPromedios.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin datos suficientes.</td></tr>';
-                    return; // Si no hay notas, terminamos aquí.
+                    tbSesiones.innerHTML = '<tr><td colspan="3" style="text-align: center;">Nadie ha ingresado aún.</td></tr>';
+                    return; 
                 }
 
-                const listaNotas = Object.values(datosNotas);
-                const diccionarioEstudiantes = {};
+                // Diccionario que creará la lista de niños automáticamente
+                const estudiantesGlobal = {};
 
-                // Llenar el historial y recolectar datos para promedios
-                listaNotas.reverse().forEach(registro => {
-                    const notaFinal = parseFloat(registro.nota);
-                    const nombre = registro.nombre_completo || 'Anónimo';
+                // 1. PROCESAR HISTORIAL (Aquí capturamos los nombres reales tal cual los escribieron)
+                const listaNotas = Object.values(datosNotas).reverse();
+                
+                listaNotas.forEach(registro => {
+                    const idEstudiante = registro.id_estudiante || registro.nombre_completo.toLowerCase().replace(/ /g, '');
+                    const nombreReal = registro.nombre_completo || 'Anónimo';
+                    const notaFinal = parseFloat(registro.nota) || 0;
                     const materiaTema = `${registro.materia} - ${registro.tema}`;
+                    const fechaPrueba = registro.fecha || 'Fecha desconocida';
 
+                    // Si el niño no está en nuestra lista virtual, lo agregamos
+                    if (!estudiantesGlobal[idEstudiante]) {
+                        estudiantesGlobal[idEstudiante] = {
+                            nombre: nombreReal, // Guardamos el nombre exacto que digitó
+                            ultimaActividad: fechaPrueba,
+                            tipoActividad: 'Entregó una práctica',
+                            totalPruebas: 0,
+                            sumaNotas: 0,
+                            temasFallados: new Set()
+                        };
+                    }
+
+                    // Sumamos las notas al promedio
+                    estudiantesGlobal[idEstudiante].totalPruebas += 1;
+                    estudiantesGlobal[idEstudiante].sumaNotas += notaFinal;
+
+                    if (notaFinal < 70) {
+                        estudiantesGlobal[idEstudiante].temasFallados.add(materiaTema);
+                    }
+
+                    // Llenar tabla de historial
                     const claseNota = notaFinal >= 70 ? 'nota-alta' : 'nota-baja';
                     tbHistorial.innerHTML += `
                         <tr>
-                            <td style="font-size: 12px; color: #7f8c8d;">${registro.fecha || 'N/A'}</td>
-                            <td style="font-weight: bold;">${nombre}</td>
+                            <td style="font-size: 12px; color: #7f8c8d;">${fechaPrueba}</td>
+                            <td style="font-weight: bold;">${nombreReal}</td>
                             <td>${materiaTema}</td>
                             <td>${registro.aciertos || 0}/${registro.total_preguntas || 0}</td>
                             <td class="${claseNota}">${notaFinal.toFixed(0)}</td>
                         </tr>
                     `;
-
-                    if (!diccionarioEstudiantes[nombre]) {
-                        diccionarioEstudiantes[nombre] = { sumaNotas: 0, totalPruebas: 0, temasFallados: new Set() };
-                    }
-                    
-                    diccionarioEstudiantes[nombre].sumaNotas += notaFinal;
-                    diccionarioEstudiantes[nombre].totalPruebas += 1;
-
-                    if (notaFinal < 70) {
-                        diccionarioEstudiantes[nombre].temasFallados.add(materiaTema);
-                    }
                 });
 
+                // 2. PROCESAR SESIONES (Para los que entraron pero NO hicieron nada)
+                for (const [id, sesion] of Object.entries(datosSesiones)) {
+                    if (!estudiantesGlobal[id]) {
+                        // El niño entró a la página, pero no hizo pruebas. 
+                        // Mostramos el ID que se generó a partir de su nombre (ej. mariafernandarojas)
+                        estudiantesGlobal[id] = {
+                            nombre: `<span style="color:#7f8c8d; font-family:monospace;">ID: ${id}</span>`, 
+                            ultimaActividad: sesion.lastLogin,
+                            tipoActividad: 'Ingresó a la página, pero no hizo prácticas.',
+                            totalPruebas: 0,
+                            sumaNotas: 0,
+                            temasFallados: new Set()
+                        };
+                    } else {
+                        // Si ya estaba en la lista, le actualizamos la fecha de conexión
+                        estudiantesGlobal[id].ultimaActividad = sesion.lastLogin;
+                        estudiantesGlobal[id].tipoActividad = 'Conexión reciente';
+                    }
+                }
+
+                // 3. IMPRIMIR TABLAS DE ACCESOS Y PROMEDIOS
                 let htmlAlertas = '';
 
-                // Calcular promedios y generar alertas
-                for (const [estudiante, datosEstudiante] of Object.entries(diccionarioEstudiantes)) {
-                    const promedio = datosEstudiante.sumaNotas / datosEstudiante.totalPruebas;
-                    const clasePromedio = promedio >= 70 ? 'nota-alta' : 'nota-baja';
-                    const estado = promedio >= 70 ? '✅ Aprobando' : '⚠️ En Riesgo';
-
-                    tbPromedios.innerHTML += `
+                for (const [id, datos] of Object.entries(estudiantesGlobal)) {
+                    
+                    // --- Tabla de Accesos (Muestra a TODOS) ---
+                    const badgeConexion = datos.totalPruebas > 0 ? '<span class="estado-historico">✅ Activo (Tiene Pruebas)</span>' : '<span class="nota-baja">⚠️ Entró, pero no resolvió nada</span>';
+                    tbSesiones.innerHTML += `
                         <tr>
-                            <td style="font-weight: bold;">${estudiante}</td>
-                            <td>${datosEstudiante.totalPruebas}</td>
-                            <td class="${clasePromedio}">${promedio.toFixed(1)}</td>
-                            <td>${estado}</td>
+                            <td style="font-weight: bold;">${datos.nombre}</td>
+                            <td>${datos.ultimaActividad} <br><span style="font-size: 11px; color:#7f8c8d;">${datos.tipoActividad}</span></td>
+                            <td>${badgeConexion}</td>
                         </tr>
                     `;
 
-                    if (promedio < 70 || datosEstudiante.temasFallados.size > 0) {
-                        let etiquetasTemas = '';
-                        datosEstudiante.temasFallados.forEach(tema => {
-                            etiquetasTemas += `<span class="alert-tag">${tema}</span>`;
-                        });
+                    // --- Tabla de Promedios y Alertas (Solo si hicieron pruebas) ---
+                    if (datos.totalPruebas > 0) {
+                        const promedio = datos.sumaNotas / datos.totalPruebas;
+                        const clasePromedio = promedio >= 70 ? 'nota-alta' : 'nota-baja';
+                        const estado = promedio >= 70 ? '✅ Aprobando' : '⚠️ En Riesgo';
 
-                        htmlAlertas += `
-                            <div class="alert-card">
-                                <h3>${estudiante}</h3>
-                                <p><strong>Promedio Global:</strong> <span style="color: ${promedio >= 70 ? '#27ae60' : '#c0392b'};">${promedio.toFixed(1)}</span></p>
-                                <p><strong>Dificultades detectadas en:</strong></p>
-                                <div style="margin-top: 5px;">${etiquetasTemas}</div>
-                            </div>
+                        tbPromedios.innerHTML += `
+                            <tr>
+                                <td style="font-weight: bold;">${datos.nombre}</td>
+                                <td>${datos.totalPruebas}</td>
+                                <td class="${clasePromedio}">${promedio.toFixed(1)}</td>
+                                <td>${estado}</td>
+                            </tr>
                         `;
+
+                        // Generar alertas rojas si el promedio es malo o hay temas fallados
+                        if (promedio < 70 || datos.temasFallados.size > 0) {
+                            let etiquetasTemas = '';
+                            datos.temasFallados.forEach(tema => {
+                                etiquetasTemas += `<span class="alert-tag">${tema}</span>`;
+                            });
+
+                            htmlAlertas += `
+                                <div class="alert-card">
+                                    <h3>${datos.nombre}</h3>
+                                    <p><strong>Promedio Global:</strong> <span style="color: ${promedio >= 70 ? '#27ae60' : '#c0392b'};">${promedio.toFixed(1)}</span></p>
+                                    <p><strong>Dificultades detectadas en:</strong></p>
+                                    <div style="margin-top: 5px;">${etiquetasTemas}</div>
+                                </div>
+                            `;
+                        }
                     }
                 }
 
