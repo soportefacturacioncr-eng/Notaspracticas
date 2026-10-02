@@ -13,26 +13,16 @@
         .container { max-width: 1100px; margin: 0 auto; }
         .btn-volver { display: inline-block; margin-bottom: 15px; text-decoration: none; color: #34495e; font-weight: bold; background: #e2e8f0; padding: 10px 15px; border-radius: 6px; }
         
-        /* Sección de Alertas */
         .alerts-section { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-bottom: 30px; }
         .alert-card { background: #fff3f3; border-left: 5px solid #e74c3c; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .alert-card h3 { margin: 0 0 10px 0; color: #c0392b; font-size: 18px; }
         .alert-card p { margin: 5px 0; font-size: 14px; color: #333; }
         .alert-tag { display: inline-block; background: #e74c3c; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; margin: 2px; font-weight: bold; }
 
-        /* Estilos de las Tarjetas */
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px; }
         .card h2 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #1abc9c; padding-bottom: 10px; font-size: 20px; }
         
-        /* Contenedor responsivo para móviles */
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto; 
-            -webkit-overflow-scrolling: touch; 
-            margin-top: 15px;
-        }
-
-        /* Estilos de Tabla */
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 15px; }
         table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 600px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f9fa; color: #2c3e50; font-weight: bold; white-space: nowrap; }
@@ -50,22 +40,18 @@
         
         <div class="header">
             <h1>Panel Administrativo y Análisis de Rendimiento</h1>
-            <p>Escuela Viento Fresco - 6° Grado 2026</p>
+            <p>Escuela Viento Fresco - 6° Grado</p>
         </div>
 
-        <!-- SECCIÓN 1: ALERTAS DE ESTUDIANTES EN RIESGO -->
         <div class="card">
             <h2>🚨 Alertas de Atención Prioritaria</h2>
-            <p style="font-size: 14px; color: #7f8c8d; margin-top:-5px;">Estudiantes con promedio general inferior a 70 o que están fallando en temas específicos.</p>
             <div class="alerts-section" id="seccion-alertas">
                 <p style="color: #27ae60; font-weight: bold;">Excelente: Ningún estudiante requiere atención prioritaria en este momento.</p>
             </div>
         </div>
 
-        <!-- SECCIÓN 2: CONTROL DE ACCESO -->
         <div class="card">
             <h2>👥 Control de Acceso y Conexión</h2>
-            <p style="font-size: 14px; color: #7f8c8d; margin-top:-5px;">Muestra a todos los estudiantes que han entrado, con los nombres tal cual los ingresaron.</p>
             <div class="table-responsive">
                 <table>
                     <thead>
@@ -82,7 +68,6 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 3: PROMEDIOS GENERALES -->
         <div class="card">
             <h2>📊 Resumen de Notas por Estudiante</h2>
             <div class="table-responsive">
@@ -102,7 +87,6 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 4: HISTORIAL COMPLETO -->
         <div class="card">
             <h2>📝 Historial Detallado de Pruebas</h2>
             <div class="table-responsive">
@@ -125,7 +109,6 @@
     </div>
 
     <script>
-        // Protección con contraseña
         window.onload = function() {
             const password = prompt("🔒 Acceso Restringido. Ingrese la contraseña de la profesora:");
             if (password === "Viento2026") {
@@ -136,7 +119,6 @@
             }
         };
 
-        // Descarga y análisis de los datos
         async function cargarYAnalizarDatos() {
             try {
                 const [resNotas, resSesiones] = await Promise.all([
@@ -152,29 +134,28 @@
                 const tbSesiones = document.getElementById('tabla-sesiones');
                 const divAlertas = document.getElementById('seccion-alertas');
                 
-                tbPromedios.innerHTML = '';
-                tbHistorial.innerHTML = '';
-                tbSesiones.innerHTML = '';
+                tbPromedios.innerHTML = ''; tbHistorial.innerHTML = ''; tbSesiones.innerHTML = '';
 
                 const estudiantesGlobal = {};
-                let contadorValidos = 0; // Para saber si realmente hay exámenes reales
 
-                // 1. PROCESAR HISTORIAL (Filtrando la "basura")
+                if (Object.keys(datosNotas).length === 0 && Object.keys(datosSesiones).length === 0) {
+                    tbHistorial.innerHTML = '<tr><td colspan="5" style="text-align: center;">La plataforma está vacía.</td></tr>';
+                    tbPromedios.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin datos suficientes.</td></tr>';
+                    tbSesiones.innerHTML = '<tr><td colspan="3" style="text-align: center;">Nadie ha ingresado aún.</td></tr>';
+                    return; 
+                }
+
+                // 1. PROCESAR HISTORIAL DE NOTAS
                 const listaNotas = Object.values(datosNotas).reverse();
-                
                 listaNotas.forEach(registro => {
                     if (!registro) return; 
 
-                    const nombreReal = registro.nombre_completo;
-                    const idEstudiante = registro.id_estudiante;
+                    const nombreReal = registro.nombre_completo || 'Sin Nombre Registrado';
+                    const idLimpio = registro.id_estudiante || nombreReal.toLowerCase().replace(/ /g, '');
+                    
+                    // Ignoramos la basura de sistema ("error", "anonimo", "null") pero dejamos pasar a los estudiantes reales
+                    if (idLimpio === 'error' || idLimpio === 'anonimo' || idLimpio === 'null') return;
 
-                    // FILTRO DE LIMPIEZA: Ignorar datos sin nombre, "Anónimos" o "errores" viejos
-                    if (!nombreReal || nombreReal === 'Estudiante Anónimo' || nombreReal === 'Anónimo' || idEstudiante === 'error' || idEstudiante === 'anonimo') {
-                        return; 
-                    }
-
-                    contadorValidos++;
-                    const idLimpio = idEstudiante ? idEstudiante : nombreReal.toLowerCase().replace(/ /g, '');
                     const notaFinal = parseFloat(registro.nota) || 0;
                     const materiaTema = `${registro.materia || 'Materia'} - ${registro.tema || 'Tema'}`;
                     const fechaPrueba = registro.fecha || 'Fecha desconocida';
@@ -193,9 +174,7 @@
                     estudiantesGlobal[idLimpio].totalPruebas += 1;
                     estudiantesGlobal[idLimpio].sumaNotas += notaFinal;
 
-                    if (notaFinal < 70) {
-                        estudiantesGlobal[idLimpio].temasFallados.add(materiaTema);
-                    }
+                    if (notaFinal < 70) estudiantesGlobal[idLimpio].temasFallados.add(materiaTema);
 
                     const claseNota = notaFinal >= 70 ? 'nota-alta' : 'nota-baja';
                     tbHistorial.innerHTML += `
@@ -209,40 +188,36 @@
                     `;
                 });
 
-                // 2. PROCESAR SESIONES (Filtrando la "basura")
+                // 2. PROCESAR SESIONES (Conexiones recientes)
                 for (const [id, sesion] of Object.entries(datosSesiones)) {
-                    // FILTRO DE LIMPIEZA: Ignorar sesiones fantasmas
                     if (!sesion || id === 'error' || id === 'anonimo' || id === 'null') continue; 
 
                     if (!estudiantesGlobal[id]) {
+                        // Entró pero no hizo pruebas
                         estudiantesGlobal[id] = {
-                            nombre: `<span style="color:#7f8c8d; font-family:monospace;">ID: ${id}</span>`, 
+                            nombre: `<span style="text-transform: capitalize;">${id}</span>`, 
                             ultimaActividad: sesion.lastLogin || 'Fecha desconocida',
-                            tipoActividad: 'Ingresó a la página, pero no hizo prácticas.',
+                            tipoActividad: 'Ingresó a la plataforma, pero no entregó prácticas.',
                             totalPruebas: 0,
                             sumaNotas: 0,
                             temasFallados: new Set()
                         };
                     } else {
+                        // Ya existía en las notas, actualizamos su última conexión
                         estudiantesGlobal[id].ultimaActividad = sesion.lastLogin || estudiantesGlobal[id].ultimaActividad;
-                        estudiantesGlobal[id].tipoActividad = 'Conexión reciente';
+                        estudiantesGlobal[id].tipoActividad = 'Conexión reciente detectada';
                     }
                 }
 
-                // 3. VERIFICAR SI QUEDARON DATOS DESPUÉS DE LA LIMPIEZA
-                if (Object.keys(estudiantesGlobal).length === 0) {
-                    tbHistorial.innerHTML = '<tr><td colspan="5" style="text-align: center;">La plataforma está limpia. Aún no hay registros válidos de estudiantes.</td></tr>';
-                    tbPromedios.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin datos suficientes.</td></tr>';
-                    tbSesiones.innerHTML = '<tr><td colspan="3" style="text-align: center;">Ningún estudiante ha ingresado aún.</td></tr>';
-                    return;
-                }
-
-                // 4. IMPRIMIR TABLAS DE ACCESOS Y PROMEDIOS
+                // 3. RENDERIZAR TABLAS Y ALERTAS
                 let htmlAlertas = '';
+                let hayEstudiantes = false;
 
                 for (const [id, datos] of Object.entries(estudiantesGlobal)) {
+                    hayEstudiantes = true;
                     
-                    const badgeConexion = datos.totalPruebas > 0 ? '<span class="estado-historico">✅ Activo (Tiene Pruebas)</span>' : '<span class="nota-baja">⚠️ Entró, pero no resolvió nada</span>';
+                    // Tabla Accesos
+                    const badgeConexion = datos.totalPruebas > 0 ? '<span class="estado-historico">✅ Activo (Tiene Pruebas)</span>' : '<span class="nota-baja">⚠️ Solo ingresó, no resolvió</span>';
                     tbSesiones.innerHTML += `
                         <tr>
                             <td style="font-weight: bold;">${datos.nombre}</td>
@@ -251,6 +226,7 @@
                         </tr>
                     `;
 
+                    // Tabla Promedios
                     if (datos.totalPruebas > 0) {
                         const promedio = datos.sumaNotas / datos.totalPruebas;
                         const clasePromedio = promedio >= 70 ? 'nota-alta' : 'nota-baja';
@@ -265,11 +241,10 @@
                             </tr>
                         `;
 
+                        // Alertas Rojas
                         if (promedio < 70 || datos.temasFallados.size > 0) {
                             let etiquetasTemas = '';
-                            datos.temasFallados.forEach(tema => {
-                                etiquetasTemas += `<span class="alert-tag">${tema}</span>`;
-                            });
+                            datos.temasFallados.forEach(tema => etiquetasTemas += `<span class="alert-tag">${tema}</span>`);
 
                             htmlAlertas += `
                                 <div class="alert-card">
@@ -283,13 +258,15 @@
                     }
                 }
 
-                if (htmlAlertas !== '') {
-                    divAlertas.innerHTML = htmlAlertas;
+                if (!hayEstudiantes) {
+                    tbSesiones.innerHTML = '<tr><td colspan="3" style="text-align: center;">No hay estudiantes registrados válidos aún.</td></tr>';
                 }
+
+                if (htmlAlertas !== '') divAlertas.innerHTML = htmlAlertas;
 
             } catch (error) {
                 console.error("Error al cargar datos:", error);
-                document.getElementById('tabla-historial').innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">Error al conectar con la base de datos.</td></tr>';
+                document.getElementById('tabla-historial').innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">Error al conectar con la base de datos. Verifica tu internet.</td></tr>';
             }
         }
     </script>
